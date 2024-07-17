@@ -3,6 +3,7 @@ import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 from numpy.random import randint
 import numpy as np
+from math import floor
 
 
 class Fluid:
@@ -64,8 +65,71 @@ class Fluid:
                     self.v[i, j+1] += ds * self.s[s, j+1]
 
     def extrapolate(self):
-        # TODO
-        pass
+        self.u[:, 0] = self.u[:, 1]
+        self.u[:, -1] = self.u[:, -2]
+
+        self.v[0, :] = self.v[1, :]
+        self.v[-1, :] = self.v[-2, :]
+
+    def advect_vel(self, dt):
+        new_u = self.u.copy()
+        new_v = self.v.copy()
+
+        for i in range(1,self.num_x):
+            for j in range(1, self.num_y):
+                # u component
+                if self.s[i, j] != 0.0 and self.s[i-1, j] != 0.0 and j < self.num_y - 1:
+                    x = i * self.h
+                    y = j * self.h + self.h / 2
+                    u = self.u[i, j]
+                    v = np.mean([
+                        self.v[i-1, j], self.v[i, j], self.v[i-1, j+1], self.v[i, j+1]
+                    ])
+                    x -= dt*u
+                    y -= dt*v
+                    u = self.sample_field(x, y, 'u')
+                    new_u[i, j] = u
+                # TODO: continue with v
+
+    def sample_field(self, x, y, field):
+        # adjust borders
+        # if x < self.h:
+        #     x = self.h
+        # elif x > self.num_x * self.h:
+        #     x = self.num_x * self.h
+        x = max(self.h, min(x, self.num_x * self.h))
+        y = max(self.h, min(y, self.num_y * self.h))
+
+        f = None
+        dx, dy = 0.0, 0.0
+        if field == 'u':
+            f, dy = self.u, 1.0 / (2*self.h)
+        elif field == 'v':
+            f, dx = self.v, 1.0 / (2*self.h)
+        elif field == 's':
+            f, dx, dy = self.s, 1.0 / (2*self.h), 1.0 / (2*self.h)
+        else:
+            assert False, f'Field should be in (u,v,s) not {field}'
+
+        # General Grid Interpolation
+        w = np.zeros((2,2))
+        x0 = min(self.num_x-1, floor((x-dx) / self.h))
+        w[0,1] = ((x-dx)-x0*self.h)/self.h
+        x1 = min(x0+1, self.num_x-1)
+
+        y0 = min(self.num_y-1, floor((y-dy) / self.h))
+        w[1,1] = ((y-dy) - y0*self.h)/self.h
+        y1 = min(y0+1, self.num_y-1)
+
+        w[0, 0] = 1 - w[0, 1]
+        w[1, 0] = 1 - w[1, 1]
+
+        # return value with coefficients from 4 corners around result point
+        result = w[0, 0] * w[1, 0] * f[x0, y0] \
+            + w[0, 1] * w[1, 0] * f[x1, y0] \
+            + w[0, 1] * w[1, 1] * f[x1, y1]  \
+            + w[0, 0] * w[1, 0] * f[x0, y1]  # maby there is a mistake in PDF
+        return result
 
 
 class Scene:
