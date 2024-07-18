@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from numpy.random import randint
 import numpy as np
 from math import floor
+from argparse import ArgumentParser
 
 
 class Solid:
@@ -42,6 +43,13 @@ class Fluid:
         self.obstacle_y = None
         self.obstacles = []  # type: List[Solid]  # for multiple obstacles, empty for now
 
+        # arrays for dump
+        self.pt = []  # pressures by timestep
+        self.vt = []  # vertical velocity by timestep
+        self.ut = []  # horizontal velocity by timestep
+        self.vta = []  # vertical velocity after adjustment by timestep
+        self.uta = []  # horizontal velocity after adjustment by timestep
+
     def initialize(self):
         # tank
         for i in range(self.num_x):
@@ -52,8 +60,8 @@ class Fluid:
                 self.s[i, j] = s
 
         #  pipe 1
-        self.u[1, :] = 10.0
-        self.m[0, 30:-30] = 0.0
+        # self.u[1, :] = 10.0
+        # self.m[0, 30:-30] = 0.0
 
         # pipe 2
         # self.v[:, 1] = 10.0
@@ -271,9 +279,9 @@ class Scene:
         # self.fluid.obstacles = [left_obj, right_obj, center_obj]
         self.im_ax = []
         pressure = fluid.p
-        fluid.set_obstacle(32, 32, 1/30)
-        self.scat = self.axes.scatter(32, 32, s=1000)  # draw a circle on obstacle
-        self.im_ax.append( self.scat)
+        # fluid.set_obstacle(32, 32, 1/30)
+        # self.scat = self.axes.scatter(32, 32, s=1000)  # draw a circle on obstacle
+        # self.im_ax.append( self.scat)
         self.im_ax.append(self.axes.imshow(np.rot90(pressure)))
         # paths for moving obstacle
         self.x_path = None
@@ -294,22 +302,22 @@ class Scene:
         # fluid.move_obstacle(0, -1 if phase < 5 else 1, 0, 1 / 30)
         # fluid.move_obstacle(0, -1 if phase < 5 else 1, 1, 1 / 30)
         # fluid.move_obstacle(0, 1 if phase < 5 else -1, 2, 1 / 30)
-        if i % 20 == 0:
-            target_point_x = randint(5, fluid.num_x-5) * fluid.h
-            target_point_y = randint(5, fluid.num_y-5) * fluid.h
-            self.x_path = np.linspace(fluid.obstacle_x, target_point_x, 10)
-            self.y_path = np.linspace(fluid.obstacle_y, target_point_y, 10)
-            fluid.set_obstacle(self.x_path[i % 10], self.y_path[i % 10], 1 / 30)
-            self.scat.set_offsets((self.x_path[i % 10] - 1 , 65- self.y_path[i % 10]) )
-        elif (i % 20) < 10:
-            if self.x_path is None or self.y_path is None:
-                self.x_path = np.ones(5) * fluid.obstacle_x
-                self.y_path = np.ones(5) * fluid.obstacle_y
-            fluid.set_obstacle(self.x_path[i % 10], self.y_path[i % 10], 1 / 30)
-            self.scat.set_offsets((self.x_path[i % 10] - 1, 65 - self.y_path[i % 10]))
-        else:
-            # not move obstacle
-            pass
+        # if i % 20 == 0:
+        #     target_point_x = randint(5, fluid.num_x-5) * fluid.h
+        #     target_point_y = randint(5, fluid.num_y-5) * fluid.h
+        #     self.x_path = np.linspace(fluid.obstacle_x, target_point_x, 10)
+        #     self.y_path = np.linspace(fluid.obstacle_y, target_point_y, 10)
+        #     fluid.set_obstacle(self.x_path[i % 10], self.y_path[i % 10], 1 / 30)
+        #     self.scat.set_offsets((self.x_path[i % 10] - 1 , 65- self.y_path[i % 10]) )
+        # elif (i % 20) < 10:
+        #     if self.x_path is None or self.y_path is None:
+        #         self.x_path = np.ones(5) * fluid.obstacle_x
+        #         self.y_path = np.ones(5) * fluid.obstacle_y
+        #     fluid.set_obstacle(self.x_path[i % 10], self.y_path[i % 10], 1 / 30)
+        #     self.scat.set_offsets((self.x_path[i % 10] - 1, 65 - self.y_path[i % 10]))
+        # else:
+        #     # not move obstacle
+        #     pass
         fluid.simulate(1 / 30, -9.81, 40)
         pressure = fluid.p
         print(i)
@@ -321,6 +329,12 @@ class Scene:
 
 
 if __name__ == '__main__':
+    arg_parser = ArgumentParser()
+    arg_parser.add_argument('--animation', type=str, default=None,
+                            help="Path to store animation. If None - show in place")
+    arg_parser.add_argument('--obstacle', action="store_true", default=False, help="Flag to add obstacle")
+    arg_parser.add_argument('--pipes', type=int, help="Number of pipes with additional flow")
+
     fluid = Fluid(1, 64, 64, 1)
     fluid.initialize()
     Writer = animation.writers['ffmpeg']
@@ -333,5 +347,5 @@ if __name__ == '__main__':
                                   init_func=scene.init,
                                   repeat=False)
 
-    ani.save('result.gif', writer=writer)
-    # plt.show()
+    # ani.save('result10.gif', writer=writer)
+    plt.show()
