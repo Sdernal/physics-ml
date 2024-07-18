@@ -14,7 +14,7 @@ class Fluid:
         self.h = h  # cell height
         self.p = np.zeros((self.num_x, self.num_y))  # pressure
         self.s = np.zeros((self.num_x, self.num_y))  # states (wall - non-wall)
-        self.m = np.ones((self.num_x, self.num_y))  # masses
+        self.m = np.ones((self.num_x, self.num_y))  # masses ?
         self.v = np.zeros((self.num_x, self.num_y))  # vertical velocities
         self.u = np.zeros((self.num_x, self.num_y))  # horizontal velocities
         self.over_relaxation = 1.9
@@ -89,7 +89,26 @@ class Fluid:
                     y -= dt*v
                     u = self.sample_field(x, y, 'u')
                     new_u[i, j] = u
-                # TODO: continue with v
+                if self.s[i,j] != 0 and self.s[i, j-1] != 0 and i < self.num_x - 1:
+                    x = i * self.h + self.h / 2
+                    y = j * self.h
+                    u = np.mean([
+                        self.u[i,j-1], self.u[i,j], self.u[i+1, j-1], self.u[i+1,j]
+                    ])
+                    v = self.v[i,j]
+                    x = x - dt*u
+                    y = y - dt*v
+                    v = self.sample_field(x, y, 'v')
+                    new_v[i,j] = v
+
+        self.u = new_u
+        self.v = new_v
+
+    def advect_smoke(self, dt):
+        for i in range(1,self.num_x - 1):
+            for j in range(1, self.num_y  - 1):
+                pass
+                # TODO: continue
 
     def sample_field(self, x, y, field):
         # adjust borders
