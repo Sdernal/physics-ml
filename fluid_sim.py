@@ -1,4 +1,6 @@
 # Python adaptation of tenMinutePhysics
+import random
+
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 from numpy.random import randint
@@ -18,6 +20,9 @@ class Fluid:
         self.v = np.zeros((self.num_x, self.num_y))  # vertical velocities
         self.u = np.zeros((self.num_x, self.num_y))  # horizontal velocities
         self.over_relaxation = 1.9
+        self.outer_force = [self.num_x // 2, self.num_y//2]
+        self.obstacle_x = None
+        self.obstacle_y = None
 
     def initialize(self):
         # tank
@@ -27,6 +32,38 @@ class Fluid:
                 if i == 0 or i == self.num_x-1 or j == 0:
                     s = 0.0  # solid
                 self.s[i, j] = s
+
+        # pipe 1
+        # self.u[1, :] = 10.0
+        # self.m[0, 30:-30] = 0.0
+
+        # pipe 2
+        # self.v[:, 1] = 10.0
+        # self.m[30:-30, 0] = 0.0
+
+        # # obstacle
+
+    def set_obstacle(self, x, y, dt):
+        vx = (x - self.obstacle_x) / dt if self.obstacle_x is not None else 0.0
+        vy = (y - self.obstacle_y) / dt if self.obstacle_y is not None else 0.0
+
+        self.obstacle_x, self.obstacle_y = x, y
+        r = 2.0
+
+        for i in range(1, self.num_x-2):
+            for j in range(1, self.num_y-2):
+                self.s[i, j] = 1.0
+
+                dx = (i + 0.5) * self.h - x
+                dy = (j + 0.5) * self.h - y
+
+                if dx*dx + dy*dy < r*r:
+                    self.s[i, j] = 0.0
+                    self.m[i, j] = 1.0
+                    self.u[i, j] = vx
+                    self.u[i+1, j] = vx
+                    self.v[i, j] = vy
+                    self.v[i, j+1] = vy
 
     def simulate(self, dt, gravity, num_iters):
         self.integrate(dt, gravity)
@@ -41,6 +78,21 @@ class Fluid:
             for j in range(1, self.num_y-1):
                 if self.s[i, j] > 0 and self.s[i, j-1] > 0:
                     self.v[i, j] += gravity * dt
+
+    def apply_random_force(self, dt):
+        self.outer_force[0] += randint(0, 3) - 1
+        self.outer_force[1] += randint(0, 3) - 1
+        i, j = self.outer_force
+        random_force = np.random.random(2) * 100 - 50
+        for r1 in range(5):
+            for r2 in range(5):
+                # if i - r > 1 and j - r > 1:
+                # self.u[i-r1, j-r2] += random_force[0] * dt
+                # self.v[i-r1, j-r2] += random_force[1] * dt
+                # if i + r < self.num_x - 1 and j + r < self.num_y - 1 and r > 0:
+                self.u[i + r1, j + r2] += random_force[0] * dt
+                self.v[i + r1, j + r2] += random_force[1] * dt
+        print(f"Applying random force on {i, j}")
 
     def solve_incomressibility(self, num_iters, dt):
         cp = self.density * self.h / dt
@@ -136,7 +188,7 @@ class Fluid:
         elif field == 'v':
             f, dx = self.v, self.h / 2
         elif field == 's':
-            f, dx, dy = self.s, self.h / 2, self.h / 2
+            f, dx, dy = self.m, self.h / 2, self.h / 2
         else:
             assert False, f'Field should be in (u,v,s) not {field}'
 
@@ -168,7 +220,10 @@ class Scene:
 
         self.im_ax = []
         pressure = fluid.p
+        fluid.set_obstacle(32,32,1/30)
         self.im_ax.append(self.axes.imshow(np.rot90(pressure)))
+        self.x_path = None
+        self.y_path = None
 
     def get_heatmap(self):
         pass
@@ -176,6 +231,24 @@ class Scene:
     def animate(self, i):
         self.im_ax[-1].remove()
         self.im_ax.pop()
+
+        # if i % 2 == 0:
+        #     # applying random force on one cell
+        # fluid.apply_random_force(1/30)
+        if i % 10 == 0:
+            target_point_x = randint(5, fluid.num_x-5) * fluid.h
+            target_point_y = randint(5, fluid.num_y-5) * fluid.h
+            self.x_path = np.linspace(fluid.obstacle_x, target_point_x, 5)
+            self.y_path = np.linspace(fluid.obstacle_y, target_point_y, 5)
+            fluid.set_obstacle(self.x_path[i % 5], self.y_path[i % 5], 1 / 30)
+        elif (i % 10) < 5:
+            if self.x_path is None or self.y_path is None:
+                self.x_path = np.ones(5) * fluid.obstacle_x
+                self.y_path = np.ones(5) * fluid.obstacle_y
+            fluid.set_obstacle(self.x_path[i % 5], self.y_path[i % 5], 1 / 30)
+        else:
+            # not move
+            pass
         fluid.simulate(1/30, -9.81, 40)
         pressure = fluid.p
         print(i)
@@ -187,7 +260,7 @@ class Scene:
 
 
 if __name__ == '__main__':
-    fluid = Fluid(1000, 64, 64, 1)
+    fluid = Fluid(1, 64, 64, 1)
     fluid.initialize()
     Writer = animation.writers['ffmpeg']
     writer = Writer(fps=30, bitrate=3600)
@@ -204,6 +277,6 @@ if __name__ == '__main__':
     ani = animation.FuncAnimation(fig, scene.animate, frames=300, interval=int(1000/30), blit=True, init_func=scene.init,
                                   repeat=False)
 
-    # ani.save('result3.gif', writer=writer)
-    plt.show()
+    ani.save('result_tmp3.gif', writer=writer)
+    # plt.show()
     # print('kek')
