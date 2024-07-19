@@ -65,7 +65,7 @@ class Fluid:
             self.m[30:-30, 0] = 0.0
 
     def set_obstacle(self, x, y, dt, r=2.0):
-        print(f"Obstacle position: {x, y}")
+        # print(f"Obstacle position: {x, y}")  # This is for Debugging
         vx = (x - self.obstacle_x) / dt if self.obstacle_x is not None else 0.0
         vy = (y - self.obstacle_y) / dt if self.obstacle_y is not None else 0.0
 
@@ -279,20 +279,31 @@ class Scene:
         self.y_path = None
 
     def draw(self):
+        ax_p, ax_m = self.axes
         if len(self.im_ax) == 0:
             # first frame, need to initialize
             if self.add_obstacle:
-                scat = self.axes.scatter(self.fluid.num_x // 2 - self.fluid.h / 2,
-                                         self.fluid.num_y // 2 - self.fluid.h / 2, s=1000)  # TODO: calculate s
-                self.im_ax.append(scat)
-            self.im_ax.append(self.axes.imshow(np.rot90(self.fluid.p)))
+                scat_p = ax_p.scatter(self.fluid.num_x // 2 - self.fluid.h / 2,
+                                         self.fluid.num_y // 2 - self.fluid.h / 2, s=10)  # TODO: calculate s
+                scat_m = ax_m.scatter(self.fluid.num_x // 2 - self.fluid.h / 2,
+                                           self.fluid.num_y // 2 - self.fluid.h / 2, s=10)  # TODO: calculate s
+                self.im_ax.append(scat_p)
+                self.im_ax.append(scat_m)
+            self.im_ax.append(ax_p.imshow(np.rot90(self.fluid.p)))
+            self.im_ax.append(ax_m.imshow(np.rot90(self.fluid.m)))
         else:
             # later frames we exclude image before drawing another
-            self.im_ax[-1].remove()
+            self.im_ax[-1].remove()  # ax_m
             self.im_ax.pop()
-            self.im_ax.append(self.axes.imshow(np.rot90(self.fluid.p)))
+            self.im_ax[-1].remove()  # ax_p
+            self.im_ax.pop()
+
+            self.im_ax.append(ax_p.imshow(np.rot90(self.fluid.p)))
+            self.im_ax.append(ax_m.imshow(np.rot90(self.fluid.m)))
             if self.add_obstacle:
                 self.im_ax[0].set_offsets((self.fluid.obstacle_x - self.fluid.h / 2,
+                                           self.fluid.num_y - self.fluid.obstacle_y - self.fluid.h / 2))
+                self.im_ax[1].set_offsets((self.fluid.obstacle_x - self.fluid.h / 2,
                                            self.fluid.num_y - self.fluid.obstacle_y - self.fluid.h / 2))
 
     def add_objects(self):
@@ -362,18 +373,20 @@ if __name__ == '__main__':
 
     args = arg_parser.parse_args()
     fluid = Fluid(args.density, args.num_x, args.num_y, args.h)
-    fluid.initialize()
+    fluid.initialize(num_pipes=args.pipes)
 
-    fig, axes = plt.subplots(nrows=1, ncols=1, figsize=(8, 8))
-    fig.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=None, hspace=None)
-    axes.axis('off')
-    scene = Scene(fluid, axes, args.obstacle)
-    ani = animation.FuncAnimation(fig, scene.animate, frames=600, interval=int(1000 / args.fps), blit=True,
+    fig, (ax_p, ax_m) = plt.subplots(nrows=1, ncols=2, figsize=(16, 8))
+    fig.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
+    fig.set_size_inches(1.28, 0.64, True)
+    ax_p.axis('off')
+    ax_m.axis('off')
+    scene = Scene(fluid, (ax_p, ax_m), args.obstacle)
+    ani = animation.FuncAnimation(fig, scene.animate, frames=args.frames, interval=int(1000 / args.fps), blit=True,
                                   init_func=scene.init,
                                   repeat=False)
     if args.animation is not None:
         Writer = animation.writers['ffmpeg']
-        writer = Writer(fps=args.fps, bitrate=3600)
-        ani.save(args.animation, writer=writer)
+        writer = Writer(fps=args.fps)
+        ani.save(args.animation, writer=writer, dpi=200)
     else:
         plt.show()
