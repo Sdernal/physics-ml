@@ -29,28 +29,22 @@ class Solid:
 class Fluid:
     def __init__(self, density, num_x, num_y, h):
         self.density = density
-        self.num_x = num_x + 2
-        self.num_y = num_y + 2
+        # TODO: removed additional solid cells on walls
+        self.num_x = num_x  # +2
+        self.num_y = num_y  # +2
         self.h = h  # cell height
         self.p = np.zeros((self.num_x, self.num_y))  # pressure
         self.s = np.zeros((self.num_x, self.num_y))  # states (wall - non-wall)
         self.m = np.ones((self.num_x, self.num_y))  # masses ?
         self.v = np.zeros((self.num_x, self.num_y))  # vertical velocities
         self.u = np.zeros((self.num_x, self.num_y))  # horizontal velocities
-        self.over_relaxation = 1.9
+        self.over_relaxation = 1.9  # TODO: hardcoded
         self.outer_force = [self.num_x // 2, self.num_y // 2]
         self.obstacle_x = None
         self.obstacle_y = None
-        self.obstacles = []  # type: List[Solid]  # for multiple obstacles, empty for now
+        self.obstacles = []  # type: List[Solid]  # TODO: for multiple obstacles, empty for now
 
-        # arrays for dump
-        self.pt = []  # pressures by timestep
-        self.vt = []  # vertical velocity by timestep
-        self.ut = []  # horizontal velocity by timestep
-        self.vta = []  # vertical velocity after adjustment by timestep
-        self.uta = []  # horizontal velocity after adjustment by timestep
-
-    def initialize(self):
+    def initialize(self, num_pipes: int = 0):
         # tank
         for i in range(self.num_x):
             for j in range(self.num_y):
@@ -59,23 +53,23 @@ class Fluid:
                     s = 0.0  # solid
                 self.s[i, j] = s
 
-        #  pipe 1
-        # self.u[1, :] = 10.0
-        # self.m[0, 30:-30] = 0.0
+        # TODO: let pipes be hardcoded for now
+        if num_pipes > 0:
+            #  pipe 1
+            self.u[1, :] = 10.0
+            self.m[0, 30:-30] = 0.0
 
-        # pipe 2
-        # self.v[:, 1] = 10.0
-        # self.m[30:-30, 0] = 0.0
+        if num_pipes > 1:
+            # pipe 2
+            self.v[:, 1] = 10.0
+            self.m[30:-30, 0] = 0.0
 
-        # # obstacle
-
-    def set_obstacle(self, x, y, dt):
-
+    def set_obstacle(self, x, y, dt, r=2.0):
+        print(f"Obstacle position: {x, y}")
         vx = (x - self.obstacle_x) / dt if self.obstacle_x is not None else 0.0
         vy = (y - self.obstacle_y) / dt if self.obstacle_y is not None else 0.0
 
         self.obstacle_x, self.obstacle_y = x, y
-        r = 2.0
 
         for i in range(1, self.num_x - 2):
             for j in range(1, self.num_y - 2):
@@ -94,13 +88,12 @@ class Fluid:
 
     def move_obstacle(self, dx, dy, idx, dt):
         """
-        Temporary method to move several objects, not used for now
+        TODO: Temporary method to move several objects, not used for now
         """
         vx = dx / dt
         vy = dy / dt
         self.obstacles[idx].x += dx
         self.obstacles[idx].y += dy
-        r = 2.0
 
         for i in range(1, self.num_x - 2):
             for j in range(1, self.num_y - 2):
@@ -133,7 +126,7 @@ class Fluid:
 
     def apply_random_force(self, dt):
         """
-        Method for applying random force to random set of cells, not used for now
+        TODO: Method for applying random force to random set of cells, not used for now
         """
         self.outer_force[0] += randint(0, 3) - 1
         self.outer_force[1] += randint(0, 3) - 1
@@ -264,64 +257,90 @@ class Fluid:
         result = w[0, 0] * w[1, 0] * f[x0, y0] \
                  + w[0, 1] * w[1, 0] * f[x1, y0] \
                  + w[0, 1] * w[1, 1] * f[x1, y1] \
-                 + w[0, 0] * w[1, 1] * f[x0, y1]  # maby there is a mistake in PDF
+                 + w[0, 0] * w[1, 1] * f[x0, y1]  # maybe there is a mistake in PDF
         return result
 
 
 class Scene:
-    def __init__(self, fluid, axes):
+    def __init__(self, fluid, axes, add_obstacle=False, fps=30):
         self.fluid = fluid
         self.axes = axes
-        # temporary code for adding multiple objects
-        # left_obj = Solid(x=32, y=14, w=10)
-        # center_obj = Solid(x=40, y=32, w=10)
-        # right_obj = Solid(x=32, y=50, w=10)
-        # self.fluid.obstacles = [left_obj, right_obj, center_obj]
+        self.fps = fps
+        self.add_obstacle = add_obstacle
         self.im_ax = []
-        pressure = fluid.p
-        # fluid.set_obstacle(32, 32, 1/30)
-        # self.scat = self.axes.scatter(32, 32, s=1000)  # draw a circle on obstacle
-        # self.im_ax.append( self.scat)
-        self.im_ax.append(self.axes.imshow(np.rot90(pressure)))
+
+        if add_obstacle:
+            self.fluid.set_obstacle(self.fluid.num_x // 2, self.fluid.num_y // 2, 1 / self.fps)
+
+        # draw first frame
+        self.draw()
         # paths for moving obstacle
         self.x_path = None
         self.y_path = None
 
-    def get_heatmap(self):
-        pass
+    def draw(self):
+        if len(self.im_ax) == 0:
+            # first frame, need to initialize
+            if self.add_obstacle:
+                scat = self.axes.scatter(self.fluid.num_x // 2 - self.fluid.h / 2,
+                                         self.fluid.num_y // 2 - self.fluid.h / 2, s=1000)  # TODO: calculate s
+                self.im_ax.append(scat)
+            self.im_ax.append(self.axes.imshow(np.rot90(self.fluid.p)))
+        else:
+            # later frames we exclude image before drawing another
+            self.im_ax[-1].remove()
+            self.im_ax.pop()
+            self.im_ax.append(self.axes.imshow(np.rot90(self.fluid.p)))
+            if self.add_obstacle:
+                self.im_ax[0].set_offsets((self.fluid.obstacle_x - self.fluid.h / 2,
+                                           self.fluid.num_y - self.fluid.obstacle_y - self.fluid.h / 2))
+
+    def add_objects(self):
+        """
+        TODO: temporary method to add different obstacles not used for now
+        """
+        # temporary code for adding multiple objects
+        left_obj = Solid(x=32, y=14, w=10)
+        center_obj = Solid(x=40, y=32, w=10)
+        right_obj = Solid(x=32, y=50, w=10)
+        self.fluid.obstacles = [left_obj, right_obj, center_obj]
+
+    def move_obstacle(self, i):
+        if i % 20 == 0:
+            target_point_x = randint(5, self.fluid.num_x-5) * self.fluid.h
+            target_point_y = randint(5, self.fluid.num_y-5) * self.fluid.h
+            self.x_path = np.linspace(self.fluid.obstacle_x, target_point_x, 10)
+            self.y_path = np.linspace(self.fluid.obstacle_y, target_point_y, 10)
+            self.fluid.set_obstacle(self.x_path[i % 10], self.y_path[i % 10], 1 / self.fps)
+        elif (i % 20) < 10:
+            if self.x_path is None or self.y_path is None:
+                self.x_path = np.ones(5) * self.fluid.obstacle_x
+                self.y_path = np.ones(5) * self.fluid.obstacle_y
+            self.fluid.set_obstacle(self.x_path[i % 10], self.y_path[i % 10], 1 / 30)
+        else:
+            # not move obstacle
+            pass
+
+    def move_obstacles(self, i):
+        """
+        TODO: Temporary method for move several objects
+        """
+        # this is for multiple obstacles
+        fluid.apply_random_force(1/30)
+        phase = i % 10
+        fluid.move_obstacle(0, -1 if phase < 5 else 1, 0, 1 / 30)
+        fluid.move_obstacle(0, -1 if phase < 5 else 1, 1, 1 / 30)
+        fluid.move_obstacle(0, 1 if phase < 5 else -1, 2, 1 / 30)
 
     def animate(self, i):
-        self.im_ax[-1].remove()
-        self.im_ax.pop()
+        if self.add_obstacle:
+            self.move_obstacle(i)
 
-        # this is for multiple obstacles
-        # if i % 2 == 0:
-        #     # applying random force on one cell
-        # fluid.apply_random_force(1/30)
-        # phase = i % 10
-        # fluid.move_obstacle(0, -1 if phase < 5 else 1, 0, 1 / 30)
-        # fluid.move_obstacle(0, -1 if phase < 5 else 1, 1, 1 / 30)
-        # fluid.move_obstacle(0, 1 if phase < 5 else -1, 2, 1 / 30)
-        # if i % 20 == 0:
-        #     target_point_x = randint(5, fluid.num_x-5) * fluid.h
-        #     target_point_y = randint(5, fluid.num_y-5) * fluid.h
-        #     self.x_path = np.linspace(fluid.obstacle_x, target_point_x, 10)
-        #     self.y_path = np.linspace(fluid.obstacle_y, target_point_y, 10)
-        #     fluid.set_obstacle(self.x_path[i % 10], self.y_path[i % 10], 1 / 30)
-        #     self.scat.set_offsets((self.x_path[i % 10] - 1 , 65- self.y_path[i % 10]) )
-        # elif (i % 20) < 10:
-        #     if self.x_path is None or self.y_path is None:
-        #         self.x_path = np.ones(5) * fluid.obstacle_x
-        #         self.y_path = np.ones(5) * fluid.obstacle_y
-        #     fluid.set_obstacle(self.x_path[i % 10], self.y_path[i % 10], 1 / 30)
-        #     self.scat.set_offsets((self.x_path[i % 10] - 1, 65 - self.y_path[i % 10]))
-        # else:
-        #     # not move obstacle
-        #     pass
-        fluid.simulate(1 / 30, -9.81, 40)
-        pressure = fluid.p
+        fluid.simulate(1 / self.fps, -9.81, 40)
+        self.draw()
+
         print(i)
-        self.im_ax.append(self.axes.imshow(np.rot90(pressure)))
+
         return self.im_ax
 
     def init(self):
@@ -333,19 +352,28 @@ if __name__ == '__main__':
     arg_parser.add_argument('--animation', type=str, default=None,
                             help="Path to store animation. If None - show in place")
     arg_parser.add_argument('--obstacle', action="store_true", default=False, help="Flag to add obstacle")
-    arg_parser.add_argument('--pipes', type=int, help="Number of pipes with additional flow")
+    arg_parser.add_argument('--pipes', type=int, default=0, help="Number of pipes with additional flow")
+    arg_parser.add_argument('--density', type=float, default=1., help="Density of fluid")
+    arg_parser.add_argument('--num_x', type=int, default=64, help="Number of cells horizontally")
+    arg_parser.add_argument("--num_y", type=int, default=64, help="Number of cells vertically")
+    arg_parser.add_argument("--h", type=float, default=1., help="Size of cell")
+    arg_parser.add_argument("--fps", type=int, default=30, help="Frames per second")
+    arg_parser.add_argument("--frames", type=int, default=300, help="Number of frames of simulation")
 
-    fluid = Fluid(1, 64, 64, 1)
+    args = arg_parser.parse_args()
+    fluid = Fluid(args.density, args.num_x, args.num_y, args.h)
     fluid.initialize()
-    Writer = animation.writers['ffmpeg']
-    writer = Writer(fps=30, bitrate=3600)
+
     fig, axes = plt.subplots(nrows=1, ncols=1, figsize=(8, 8))
     fig.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=None, hspace=None)
     axes.axis('off')
-    scene = Scene(fluid, axes)
-    ani = animation.FuncAnimation(fig, scene.animate, frames=600, interval=int(1000 / 30), blit=True,
+    scene = Scene(fluid, axes, args.obstacle)
+    ani = animation.FuncAnimation(fig, scene.animate, frames=600, interval=int(1000 / args.fps), blit=True,
                                   init_func=scene.init,
                                   repeat=False)
-
-    # ani.save('result10.gif', writer=writer)
-    plt.show()
+    if args.animation is not None:
+        Writer = animation.writers['ffmpeg']
+        writer = Writer(fps=args.fps, bitrate=3600)
+        ani.save(args.animation, writer=writer)
+    else:
+        plt.show()
