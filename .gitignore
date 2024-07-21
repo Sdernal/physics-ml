@@ -2,3 +2,5 @@
 .git
 *.gif
 *.mp4
+.ipynb_checkpoints
+__pycache__

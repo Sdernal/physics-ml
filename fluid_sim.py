@@ -27,7 +27,7 @@ class Solid:
 
 
 class Fluid:
-    def __init__(self, density, num_x, num_y, h):
+    def __init__(self, density, num_x, num_y, h, over_relaxation=1.9):
         self.density = density
         # TODO: removed additional solid cells on walls
         self.num_x = num_x  # +2
@@ -38,7 +38,7 @@ class Fluid:
         self.m = np.ones((self.num_x, self.num_y))  # masses ?
         self.v = np.zeros((self.num_x, self.num_y))  # vertical velocities
         self.u = np.zeros((self.num_x, self.num_y))  # horizontal velocities
-        self.over_relaxation = 1.9  # TODO: hardcoded
+        self.over_relaxation = over_relaxation  # TODO: hardcoded
         self.outer_force = [self.num_x // 2, self.num_y // 2]
         self.obstacle_x = None
         self.obstacle_y = None
@@ -157,7 +157,7 @@ class Fluid:
                     d = self.u[i + 1, j] - self.u[i, j] + self.v[i, j + 1] - self.v[i, j]  # divergence
 
                     ds = (-d / s) * self.over_relaxation
-                    self.p[i, j] += ds * cp  # cp = self.density * self.h / dt
+                    self.p[i, j] += ds * cp  # cp = self.density * self.h / dt TODO: very strange results
 
                     self.u[i, j] -= ds * self.s[i - 1, j]
                     self.u[i + 1, j] += ds * self.s[i + 1, j]
