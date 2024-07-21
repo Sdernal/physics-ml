@@ -22,4 +22,4 @@ which could be removed from argument line parameters.
 *There are also some unused features for now like several obstacles and applying random force.
 Maybe it will be finished later.*
 
-Now let us investigate states of simulation which be used to train neural network(s).
+Now let us investigate states of simulation which be used to train neural network(s) in `Experiments.ipynb`
