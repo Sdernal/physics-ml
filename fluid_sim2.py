@@ -1,4 +1,8 @@
+import logging
+
 import numpy as np
+from argparse import ArgumentParser
+from tqdm import tqdm
 
 
 class Fluid:
@@ -68,3 +72,40 @@ class Fluid:
 
         self.v = new_v
         self.u = new_u
+
+
+if __name__ == "__main__":
+    arg_parser = ArgumentParser()
+    arg_parser.add_argument('--dst', type=str, default="data.npz", help="Path to store dataset. Should end with .npz")
+    arg_parser.add_argument('--frames', type=int, default=100, help="Length of data in frames")
+    arg_parser.add_argument('--dt', type=float, default=0.001, help="Time between iterations")
+    args = arg_parser.parse_args()
+
+    fluid = Fluid()
+
+    pt, vt, ut = [], [], []
+
+    # save initial pressure and velocities
+    pt.append(fluid.p.copy())
+    vt.append(fluid.v.copy())
+    ut.append(fluid.u.copy())
+    for frame in tqdm(range(args.frames)):
+        # make step and save data
+        fluid.solve(args.dt)
+        fluid.advect(args.dt)
+
+        pt.append(fluid.p.copy())
+        vt.append(fluid.v.copy())
+        ut.append(fluid.u.copy())
+
+    # stack features
+    pt = np.stack(pt)
+    vt = np.stack(vt)
+    ut = np.stack(ut)
+
+    logging.info(f"Saving to {args.dst}... With following parameters: "
+                 f"rho={fluid.rho}"
+                 f"nu={fluid.nu}"
+                 f"dt={args.dt}"
+                 f"h={fluid.h}")
+    np.savez(args.dst, p=pt, v=vt, u=ut)
