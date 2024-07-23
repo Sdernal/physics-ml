@@ -9,15 +9,16 @@ from .losses  import DirichletLoss, LaplacianLoss
 
 
 class PoissonSolver(pl.LightningModule):
-    def __init__(self, trn_path, val_path, batch_size: int = 32):
+    def __init__(self, trn_path, val_path, dt: float = 0.001, batch_size: int = 32):
         super().__init__()
         # TODO: move hardcoded params
-        self.trn_dataset = PoissonDataset(trn_path)
-        self.val_dataset = PoissonDataset(val_path)
+        self.trn_dataset = PoissonDataset(trn_path, dt=dt)
+        self.val_dataset = PoissonDataset(val_path, dt=dt)
         self.model = UNet()
         self.dirichlet_loss = DirichletLoss(left_p=5., right_p=2.)
         self.inside_loss = nn.MSELoss()
         self.laplacian_loss = LaplacianLoss(dx=1.)
+        self.batch_size = batch_size
 
     def forward(self, g):
         p_pred = self.model(g)

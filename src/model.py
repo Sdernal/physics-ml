@@ -8,7 +8,8 @@ class Up(nn.Module):
         self.up = nn.Upsample(scale_factor=factor, mode='nearest')
         self.conv = nn.Sequential(
             nn.Conv2d(c1+c2, c_out, 3, padding=1, padding_mode='zeros'),
-            nn.ReLU()
+            nn.ReLU(),
+            nn.Conv2d(c_out, c_out, 3, padding=1, padding_mode='zeros'),
         )
 
     def forward(self, x1: torch.Tensor, x2: torch.Tensor):
@@ -25,23 +26,28 @@ class UNet(nn.Module):
         super(UNet, self).__init__()
         self.input = nn.Sequential(
             nn.Conv2d(1, 32, 3, padding=1, padding_mode='zeros'),
-            nn.ReLU()
+            nn.ReLU(),
+            nn.Conv2d(32, 32, 3, padding=1, padding_mode='zeros')
         )
         self.down1 = nn.Sequential(
             nn.MaxPool2d(2),
             nn.Conv2d(32, 32, 3, padding=1, padding_mode='zeros'),
-            nn.ReLU()
+            nn.ReLU(),
+            nn.Conv2d(32, 32, 3, padding=1, padding_mode='zeros')
         )
         self.down2 = nn.Sequential(
             nn.MaxPool2d(2),
             nn.Conv2d(32, 32, 3, padding=1, padding_mode='zeros'),
-            nn.ReLU()
+            nn.ReLU(),
+            nn.Conv2d(32, 32, 3, padding=1, padding_mode='zeros'),
         )
         self.down3 = nn.Sequential(
             nn.MaxPool2d(2),
             nn.Conv2d(32, 32, 3, padding=1, padding_mode='zeros'),
             nn.ReLU(),
             nn.Conv2d(32, 64, 3, padding=1, padding_mode='zeros'),
+            nn.ReLU(),
+            nn.Conv2d(64, 64, 3, padding=1, padding_mode='zeros')
         )
 
         self.up1 = Up(64, 32, 64)
@@ -49,9 +55,9 @@ class UNet(nn.Module):
         self.up3 = Up(64, 32, 32)
 
         self.out = nn.Sequential(
-            nn.Conv2d(32, 16, 3),
-            nn.Conv2d(16, 16, 3),
-            nn.Conv2d(16, 1, 3)
+            nn.Conv2d(32, 16, 3, padding=1, padding_mode='zeros'),
+            nn.Conv2d(16, 16, 3, padding=1, padding_mode='zeros'),
+            nn.Conv2d(16, 1, 3, padding=1, padding_mode='zeros')
         )
 
     def forward(self, x: torch.Tensor):
@@ -67,5 +73,5 @@ class UNet(nn.Module):
         x = self.up3(x, x1)  # batch_size, 32, 64, 64
 
         x = self.out(x)  # batch_size, 1, 64, 64
-        x = x.squeeze(x, dim=1)  # batch_size, 64, 64
+        x = x.squeeze(dim=1)  # batch_size, 64, 64
         return x

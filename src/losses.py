@@ -29,4 +29,4 @@ class LaplacianLoss(nn.Module):
     def forward(self, p, g):
         laplacian_p = ((p[:, 2:, 1:-1] - p[:, 1:-1, 1:-1] * 2 + p[:, :-2, 1:-1]) / self.dx ** 2
                        + (p[:, 1:-1, 2:] - p[:, 1:-1, 1:-1] * 2 + p[:, 1:-1, :-2]) / self.dx ** 2)
-        return self.mse(laplacian_p, g) * p.shape[-1] ** 2 * p.shape[-2] ** 2  # multiply by Lx^2 * Ly^2 as in paper
+        return self.mse(laplacian_p, g[:, 1:-1, 1:-1]) * p.shape[-1] ** 2 * p.shape[-2] ** 2  # multiply by Lx^2 * Ly^2 as in paper
