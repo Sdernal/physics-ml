@@ -13,7 +13,7 @@ class Fluid:
         self.ny = 64
         self.h = 1.
         self.rho = 1.
-        self.nu = -0.5
+        self.nu = 0.5
         self.u = np.zeros((self.nx, self.ny))
         self.v = np.zeros((self.nx, self.ny))
         self.p = np.zeros((self.nx, self.ny))
@@ -45,11 +45,11 @@ class Fluid:
             b[1:-1, 1:-1] = ((self.u[2:, 1:-1] - self.u[:-2, 1:-1]) / (2*dx)
                              + (self.v[1:-1, 2:] - self.v[1:-1, :-2]) / (2*dy)) * self.rho / dt
             for _ in range(self.ngs):
-                self.p[1:-1, 1:-1] = (self.p[2:, 1:-1] + self.p[:-2, 1:-1] + self.p[1:-1, 2:] + self.p[1:-1,:-2]
+                self.p[1:-1, 1:-1] = (self.p[2:, 1:-1] + self.p[:-2, 1:-1] + self.p[1:-1, 2:] + self.p[1:-1, :-2]
                                         -b[1:-1, 1:-1] * dx**2) / 4
 
-                self.p[:, 0] = 0
-                self.p[:, -1] = 0
+                self.p[:, 0] = self.p[:, 1]
+                self.p[:, -1] = self.p[:, -2]
 
     def advect(self, dt):
         new_u = self.u.copy()
