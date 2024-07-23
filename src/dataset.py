@@ -15,8 +15,10 @@ class PoissonDataset(Dataset):
         ut = data_archive['u']
         dx = dy = h
         self.g = np.zeros_like(vt)
+        # TODO: add derivative by dx and dy
         self.g[:, 1:-1, 1:-1] = rho / dt * ((ut[:,2:,1:-1] - ut[:,-2,1:-1]) / (2*dx)
                                             + (vt[:,1:-1,2:] - vt[:,1:-1,:-2])/ (2*dy))
+        # TODO: add border values
 
     def __len__(self):
         return self.pt.shape[0] - 2
