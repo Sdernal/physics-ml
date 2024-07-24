@@ -44,7 +44,7 @@ and "validation" data (whis is part of train dataset)
 python fluid_sim3.py --dst new_sim.npz --fast --frames 1000 --dt 0.01
 ```
 
-## Training Neural Network
+### Training Neural Network
 As simple model I take UNet architecture from this [paper](https://arxiv.org/pdf/2109.13076). Code of model, dataset, losses and Pytorch-Lighting module are living in `src` package in respectful files. 
 
 To run test train use script `train.py`
@@ -61,3 +61,40 @@ So, there are a lot of what to do:
 - Generate normal train and validation datasets
 - Remove some hardcode
 - Build a new **NEURAL** simulator
+
+### Experiments results
+During a dozens of training UNet I have made some improvements of ML System:
+- Made UNet a little bit deeper
+- Added callback which draws images of predicted pressure, real pressure, laplacian and network input
+- Added RL Scheduler which helped a little bit with losses explosions
+- Added Sigmoid activation to the end of UNet to ensure output ve in $[0,1]$
+- Added Normalization of data (but simplier than in paper)
+
+I also splitted my "dataset" to train and val just taking a right part for validation:
+```python
+import numpy as np
+
+sample = np.load('new_sim_10k.npz')
+np.savez('trn.npz', p=sample['p'][:9000], v=sample['v'][:9000], u=sample['u'][:9000]) 
+np.savez('val.npz', p=sample['p'][9000:], v=sample['v'][9000:], u=sample['u'][9000:]) 
+```
+
+And makes a lot of runs, the final was called with
+```
+python .\train.py --serialize_dir .\results\unet5_to_show --trn_path .\trn.npz --val_path .\val.npz ^
+    --dt 0.01 --force --accelerator gpu --patience 50 --max_epochs 200
+```
+
+This run could be found at [wandb](https://wandb.ai/sdernal/physics-ml/runs/r7etnbyf) along with the others.
+I also used only Dirichlet and Inside losses with this run (Laplacian Loss working strange, but I also logged it). 
+If you want add it for backprop, uncomment addition of it in `system.py -> PoissonSolver -> custom_loss`.
+
+The results are not very satisfied: The Laplacian loss is Large(However other losses are quite low).
+The picture of predicted pressure is similar to real one, but picture of Laplacian is different. 
+There are some possible explanations:
+
+- The Laplacian itself is quite small (~1e-9) end network could get such detail
+- The dataset is poor and there are not much difference between frames, so the network just overfitted to medium.
+
+To overcome this problem I need more diverse dataset, but I'm already tired with the 3 previous simulators. 
+So I'm planning to write prediction script and finish with this.

@@ -42,10 +42,10 @@ class PoissonSolver(pl.LightningModule):
     def custom_loss(self, g, p, p_pred, log_prefix):
         dirichlet_loss = self.dirichlet_loss(p_pred)
         inside_loss = self.inside_loss(p_pred[:, 1:-1, 1:-1], p[:, 1:-1, 1:-1])
-        laplacian_loss = self.laplacian_loss(p_pred * self.p_max, g * self.g_max)  # denormalize
-        loss = dirichlet_loss + inside_loss + laplacian_loss
+        laplacian_loss = self.laplacian_loss(p_pred*self.p_max, g*self.g_max)  # denormalize
+        loss = inside_loss + dirichlet_loss  # + laplacian_loss
         # TODO: add coefficients and think about denormalization on laplacian loss
-
+        # loss = self.inside_loss(p_pred, p)  # only mse
         # Log losses
         self.log(f'{log_prefix}/loss', loss)
         self.log(f'{log_prefix}/dirichlet_loss', dirichlet_loss)
@@ -55,7 +55,18 @@ class PoissonSolver(pl.LightningModule):
         return loss
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.model.parameters())  # TODO: look for parameters in paper
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=4.e-4, weight_decay=0, amsgrad=False)
+        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer=self.optimizer, mode='min', factor=0.9,
+                                    patience=50, threshold=3.e-4, threshold_mode='rel', verbose=False)
+        return [self.optimizer], [{"scheduler": self.scheduler, "interval": "epoch", "monitor":  "val/loss"}]
+
+    def lr_scheduler_step(
+        self,
+        scheduler,
+        optimizer_idx,
+        metric
+    ) -> None:
+        self.scheduler.step(metric, epoch=self.current_epoch)
 
     def train_dataloader(self):
         return DataLoader(self.trn_dataset, batch_size=self.batch_size, shuffle=True,

@@ -30,9 +30,7 @@ class LogPressureCallback(Callback):
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
-        # log first image
-        # logger = trainer.logger  # type: WandbLogger
-
+        # save inputs and outputs to show later
         g, p = batch
         p_pred = outputs
         self.gt.append(g.cpu().numpy())
@@ -54,11 +52,13 @@ class LogPressureCallback(Callback):
 
             g, p, p_pred = gt_cat[idx], pt_cat[idx], p_pred_t_cat[idx]
             laplacian = np.zeros_like(g)
-            p_denorm = p_pred * self.p_max
+            p_denorm = p_pred * self.p_max if self.p_max is not None else p_pred
             laplacian[1:-1, 1:-1] = (
                         (p_denorm[2:, 1:-1] - p_denorm[1:-1, 1:-1] * 2 + p_denorm[:-2, 1:-1]) / self.dx ** 2
                         + (p_denorm[1:-1, 2:] - p_denorm[1:-1, 1:-1] * 2 + p_denorm[1:-1, :-2]) / self.dx ** 2)
-            images_tmp = [np.rot90(p_pred), np.rot90(p), np.rot90(laplacian), np.rot90(g*self.g_max)]
+
+            images_tmp = [np.rot90(p_pred), np.rot90(p), np.rot90(laplacian),
+                          np.rot90(g*self.g_max if self.g_max is not None else g)]
             captions_tmp = [f'p_pred_{idx}', f'p_true_{idx}', f'laplacian_{idx}', f'g_{idx}']
             return images_tmp, captions_tmp
 

@@ -65,6 +65,8 @@ if __name__ == "__main__":
         else:
             logging.error(f"{args.serialize_dir} already exists! Choose another folder or use --force to overwrite")
             exit(-1)
+    p_max, g_max = get_normalization_values(args.trn_path, dt=args.dt)
+    logging.info(f"G_MAX: {g_max} P_MAX: {p_max}")
 
     serialize_dir.mkdir(parents=True)
     wandb_logger = WandbLogger(name=serialize_dir.name, project="physics-ml")
@@ -77,7 +79,7 @@ if __name__ == "__main__":
         save_top_k=3,
         save_last=True
     )
-    p_max, g_max = get_normalization_values(args.trn_path, dt=args.dt)
+
     system = PoissonSolver(
         trn_path=args.trn_path,
         val_path=args.val_path,

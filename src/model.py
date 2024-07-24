@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class Up(nn.Module):
@@ -33,31 +34,36 @@ class UNet(nn.Module):
             nn.MaxPool2d(2),
             nn.Conv2d(32, 32, 3, padding=1, padding_mode='zeros'),
             nn.ReLU(),
-            nn.Conv2d(32, 32, 3, padding=1, padding_mode='zeros')
+            nn.Conv2d(32, 32, 3, padding=1, padding_mode='zeros'),
         )
         self.down2 = nn.Sequential(
             nn.MaxPool2d(2),
             nn.Conv2d(32, 32, 3, padding=1, padding_mode='zeros'),
             nn.ReLU(),
-            nn.Conv2d(32, 32, 3, padding=1, padding_mode='zeros'),
+            nn.Conv2d(32, 32, 3, padding=1, padding_mode='zeros')
         )
         self.down3 = nn.Sequential(
             nn.MaxPool2d(2),
-            nn.Conv2d(32, 32, 3, padding=1, padding_mode='zeros'),
+            nn.Conv2d(32, 48, 3, padding=1, padding_mode='zeros'),
             nn.ReLU(),
-            nn.Conv2d(32, 64, 3, padding=1, padding_mode='zeros'),
+            nn.Conv2d(48, 62, 3, padding=1, padding_mode='zeros')
+        )
+        self.down4 = nn.Sequential(
+            nn.MaxPool2d(2),
+            nn.Conv2d(62, 60, 3, padding=1, padding_mode='zeros'),
             nn.ReLU(),
-            nn.Conv2d(64, 64, 3, padding=1, padding_mode='zeros')
+            nn.Conv2d(60, 62, 3, padding=1, padding_mode='zeros')
         )
 
-        self.up1 = Up(64, 32, 64)
+        self.up1 = Up(62, 62, 64)
         self.up2 = Up(64, 32, 64)
         self.up3 = Up(64, 32, 32)
+        self.up4 = Up(32, 32, 32)
 
         self.out = nn.Sequential(
-            nn.Conv2d(32, 16, 3, padding=1, padding_mode='zeros'),
-            nn.Conv2d(16, 16, 3, padding=1, padding_mode='zeros'),
-            nn.Conv2d(16, 1, 3, padding=1, padding_mode='zeros')
+            # nn.Conv2d(32, 16, 3, padding=1, padding_mode='zeros'),
+            # nn.Conv2d(16, 16, 3, padding=1, padding_mode='zeros'),
+            nn.Conv2d(32, 1, 3, padding=1, padding_mode='zeros'),
         )
 
     def forward(self, x: torch.Tensor):
@@ -66,12 +72,14 @@ class UNet(nn.Module):
         x1 = self.input(x)  # batch_size, 32, 64, 64
         x2 = self.down1(x1)  # batch_size, 32, 32, 32
         x3 = self.down2(x2)  # batch_size, 32, 16, 16
-        x4 = self.down3(x3)  # batch_size, 64, 8, 8
+        x4 = self.down3(x3)  # batch_size, 62, 8, 8
+        x = self.down4(x4)  # batch_size, 62, 4, 4
 
-        x = self.up1(x4, x3)  # batch_size, 64, 16, 16
-        x = self.up2(x, x2)  # batch_size, 64, 32, 32
-        x = self.up3(x, x1)  # batch_size, 32, 64, 64
-
+        x = self.up1(x, x4)  # batch_size, 64, 8, 8
+        x = self.up2(x, x3)  # batch_size, 64, 16, 16
+        x = self.up3(x, x2)  # batch_size, 32, 32, 32
+        x = self.up4(x, x1)  # batch_size, 32, 64, 64
         x = self.out(x)  # batch_size, 1, 64, 64
         x = x.squeeze(dim=1)  # batch_size, 64, 64
+        x = F.sigmoid(x)  # force to [0,1]
         return x
