@@ -9,16 +9,19 @@ from .losses  import DirichletLoss, LaplacianLoss
 
 
 class PoissonSolver(pl.LightningModule):
-    def __init__(self, trn_path, val_path, dt: float = 0.001, batch_size: int = 32):
+    def __init__(self, trn_path, val_path, dt: float = 0.001, batch_size: int = 32,
+                 p_max: float = None, g_max: float = None):
         super().__init__()
         # TODO: move hardcoded params
-        self.trn_dataset = PoissonDataset(trn_path, dt=dt)
-        self.val_dataset = PoissonDataset(val_path, dt=dt)
+        self.trn_dataset = PoissonDataset(trn_path, dt=dt, p_max=p_max, g_max=g_max)
+        self.val_dataset = PoissonDataset(val_path, dt=dt, p_max=p_max, g_max=g_max)
         self.model = UNet()
-        self.dirichlet_loss = DirichletLoss(left_p=5., right_p=2.)
+        self.dirichlet_loss = DirichletLoss(left_p=5 / p_max, right_p=2. / p_max)
         self.inside_loss = nn.MSELoss()
         self.laplacian_loss = LaplacianLoss(dx=1.)
         self.batch_size = batch_size
+        self.p_max = p_max
+        self.g_max = g_max
 
     def forward(self, g):
         p_pred = self.model(g)
@@ -39,8 +42,9 @@ class PoissonSolver(pl.LightningModule):
     def custom_loss(self, g, p, p_pred, log_prefix):
         dirichlet_loss = self.dirichlet_loss(p_pred)
         inside_loss = self.inside_loss(p_pred[:, 1:-1, 1:-1], p[:, 1:-1, 1:-1])
-        laplacian_loss = self.laplacian_loss(p_pred, g)
-        loss = dirichlet_loss + inside_loss + laplacian_loss  # TODO: add coefficients
+        laplacian_loss = self.laplacian_loss(p_pred * self.p_max, g * self.g_max)  # denormalize
+        loss = dirichlet_loss + inside_loss + laplacian_loss
+        # TODO: add coefficients and think about denormalization on laplacian loss
 
         # Log losses
         self.log(f'{log_prefix}/loss', loss)

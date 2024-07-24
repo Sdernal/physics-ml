@@ -3,12 +3,41 @@ from argparse import ArgumentParser
 from pathlib import Path
 import shutil
 
+import numpy as np
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from pytorch_lightning import Trainer
 
 from src.system import PoissonSolver
 from src.callback import LogPressureCallback
+
+
+def get_normalization_values(trn_path: str, rho: float = 1, dt: float = 0.01, h: float = 1.0):
+    data_archive = np.load(trn_path)
+    assert len({'p', 'u', 'v'} & set(data_archive.keys())) == 3
+
+    pt = data_archive['p']
+    vt = data_archive['v']
+    ut = data_archive['u']
+    dx = dy = h
+
+    g = np.zeros_like(vt)
+    g[:, 1:-1, 1:-1] = ((ut[:, 2:, 1:-1] - ut[:, :-2, 1:-1]) / (2 * dx)
+                             + (vt[:, 1:-1, 2:] - vt[:, 1:-1, :-2]) / (2 * dy)) * rho / dt
+
+    g2 = np.zeros_like(g)
+    g2[:, 1:-1, 1:-1] = (
+                                (ut[:, 2:, 1:-1] - ut[:, :-2, 1:-1]) ** 2 / (4 * dx ** 2)
+                                + (vt[:, 1:-1, 2:] - vt[:, 1:-1, :-2]) ** 2 / (4 * dy ** 2)
+                                + (ut[:, 1:-1, 2:] - ut[:, 1:-1, :-2]) * (vt[:, 2:, 1:-1] - vt[:, :-2, 1:-1]) / (
+                                            2 * dx * dy)
+                        ) * rho
+
+    g -= g2
+
+    p_max = abs(pt).max()
+    g_max = abs(g).max()
+    return p_max, g_max
 
 
 if __name__ == "__main__":
@@ -48,12 +77,14 @@ if __name__ == "__main__":
         save_top_k=3,
         save_last=True
     )
-
+    p_max, g_max = get_normalization_values(args.trn_path, dt=args.dt)
     system = PoissonSolver(
         trn_path=args.trn_path,
         val_path=args.val_path,
         dt=args.dt,
-        batch_size=args.batch_size
+        batch_size=args.batch_size,
+        p_max=p_max,
+        g_max=g_max
     )
 
     patience_callback = EarlyStopping(
@@ -64,7 +95,10 @@ if __name__ == "__main__":
     )
 
     log_pressure_callback = LogPressureCallback(
-        wandb_logger
+        wandb_logger,
+        indices=[10, 500, -10],  # draw frames near begin, end and center
+        p_max=p_max,
+        g_max=g_max
     )
 
     trainer = Trainer(accelerator=args.accelerator, logger=wandb_logger,

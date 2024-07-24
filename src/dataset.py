@@ -6,7 +6,8 @@ from torch.utils.data import Dataset
 
 
 class PoissonDataset(Dataset):
-    def __init__(self, data_path: Union[Path, str], dt: float = 0.001, h: float = 1., rho: float = 1.):
+    def __init__(self, data_path: Union[Path, str], dt: float = 0.001, h: float = 1., rho: float = 1.,
+                 p_max: float = None, g_max: float = None):
         data_archive = np.load(data_path)
         assert len({'p', 'u', 'v'} & set(data_archive.keys())) == 3
 
@@ -28,6 +29,12 @@ class PoissonDataset(Dataset):
 
         self.g -= g2
         # TODO: add normalization and maybe border values
+        self.p_max = p_max
+        self.g_max = g_max
+        if self.p_max is not None:
+            self.pt = self.pt / self.p_max
+        if self.g_max is not None:
+            self.g = self.g / self.g_max
 
     def __len__(self):
         return self.pt.shape[0] - 2
