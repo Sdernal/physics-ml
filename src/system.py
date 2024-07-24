@@ -34,7 +34,7 @@ class PoissonSolver(pl.LightningModule):
         g, p = batch
         p_pred = self.forward(g)
         loss = self.custom_loss(g, p, p_pred, 'val')
-        return loss
+        return p_pred
 
     def custom_loss(self, g, p, p_pred, log_prefix):
         dirichlet_loss = self.dirichlet_loss(p_pred)

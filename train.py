@@ -8,6 +8,8 @@ from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from pytorch_lightning import Trainer
 
 from src.system import PoissonSolver
+from src.callback import LogPressureCallback
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
@@ -61,6 +63,10 @@ if __name__ == "__main__":
         patience=args.patience
     )
 
+    log_pressure_callback = LogPressureCallback(
+        wandb_logger
+    )
+
     trainer = Trainer(accelerator=args.accelerator, logger=wandb_logger,
-                      callbacks=[checkpoint_callback, patience_callback], max_epochs=args.max_epochs)
+                      callbacks=[checkpoint_callback, patience_callback, log_pressure_callback], max_epochs=args.max_epochs)
     trainer.fit(model=system)
