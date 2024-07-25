@@ -123,3 +123,31 @@ If you run prediction script with mode `--animate_dataset` you will obtain predi
     <img src=".\media\prediction_diff.gif" width="100%" height="auto" align="center"/> 
 </p>
 Here abs(p-pred).max() = 0.00043815374 in all frames, the pressure itself is in $[0,1]$
+
+Difference on train while simulation is not converged
+<p align="center">
+    <img src=".\media\diff_on_train.gif" width="100%" height="auto" align="center"/> 
+</p>
+
+The absolute differences per frame are 
+```
+0.013391733
+0.013391733
+0.013391733
+0.0012540221
+0.0005912185
+0.00044888258
+0.00043940544
+0.00043958426
+0.00043970346
+0.00043958426
+0.00043940544
+0.00043922663
+0.00043910742
+0.0004389882
+0.0004388094
+0.0004388094
+0.00043863058
+0.00043863058
+0.00043851137
+```
