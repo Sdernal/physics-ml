@@ -3,6 +3,7 @@ from typing import Union
 import numpy as np
 import torch
 from torch.utils.data import Dataset
+from .utils import calculate_g
 
 
 class PoissonDataset(Dataset):
@@ -14,20 +15,8 @@ class PoissonDataset(Dataset):
         self.pt = data_archive['p']
         vt = data_archive['v']
         ut = data_archive['u']
-        dx = dy = h
+        self.g = calculate_g(ut, vt, rho, dt, h)
 
-        self.g = np.zeros_like(vt)
-        self.g[:, 1:-1, 1:-1] = ((ut[:, 2:, 1:-1] - ut[:, :-2, 1:-1]) / (2 * dx)
-                                 + (vt[:, 1:-1, 2:] - vt[:, 1:-1, :-2]) / (2 * dy)) * rho / dt
-
-        g2 = np.zeros_like(self.g)
-        g2[:, 1:-1, 1:-1] = (
-                (ut[:, 2:, 1:-1] - ut[:, :-2, 1:-1]) ** 2 / (4 * dx ** 2)
-                + (vt[:, 1:-1, 2:] - vt[:, 1:-1, :-2]) ** 2 / (4 * dy ** 2)
-                + (ut[:, 1:-1, 2:] - ut[:, 1:-1, :-2]) * (vt[:, 2:, 1:-1] - vt[:, :-2, 1:-1]) / (2 * dx * dy)
-        ) * rho
-
-        self.g -= g2
         # TODO: add normalization and maybe border values
         self.p_max = p_max
         self.g_max = g_max

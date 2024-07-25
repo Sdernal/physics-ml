@@ -98,3 +98,19 @@ There are some possible explanations:
 
 To overcome this problem I need more diverse dataset, but I'm already tired with the 3 previous simulators. 
 So I'm planning to write prediction script and finish with this.
+
+To obtain data and checkpoint to inference you could download it from 
+[google drive](https://drive.google.com/drive/folders/1A4I0--TqFGXfFi1teHxiW9D1kVKp35-Q?usp=sharing). So, the prediction script `neural_sim.py` with calling as
+```commandline
+python .\neural_sim.py --checkpoint .\unet5_to_show\epoch=134-step=38070.ckpt --trn_path .\trn.npz ^ 
+--val_path val.npz --animation bruh4.gif
+```
+will generated following "simulation":
+<p align="center">
+    <img src=".\media\predictions.gif" width="100%" height="auto" align="center"/> 
+</p>
+
+For now, it required datasets for calculating normalization constants. But latter it could be refactored.
+
+As result, with used dataset it works not well and probably with more diverse data it will work better.
+And there are also a lot of hardcode which should be reworked.
