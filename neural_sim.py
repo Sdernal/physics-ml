@@ -94,7 +94,7 @@ class Scene:
         for _ in range(10):
             # make 10 steps of simulation before drawing
             g = calculate_g(np.expand_dims(self.u, axis=0), np.expand_dims(self.v, axis=0))
-            g_batch = torch.FloatTensor(g)  # make batch
+            g_batch = torch.FloatTensor(g / self.g_max)  # make batch and normalize
             with torch.no_grad():
                 p_pred = self.system.forward(g_batch)
             p_pred.squeeze_(dim=0)  # un-batch
@@ -132,7 +132,7 @@ if __name__ == '__main__':
     # dataset = PoissonDataset(args.val_path, dt=args.dt, p_max=p_max, g_max=g_max)
     data = np.load(args.val_path)
     scene = Scene(system, data, p_max, g_max)
-    ani = animation.FuncAnimation(scene.fig, scene.animate, frames=len(data['p']) // 20, interval=int(1000 / 10),
+    ani = animation.FuncAnimation(scene.fig, scene.animate, frames=len(data['p']) // 10, interval=int(1000 / 10),
                                   blit=True,
                                   repeat=False)
 
