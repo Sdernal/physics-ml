@@ -58,14 +58,9 @@ class PoissonSolver(pl.LightningModule):
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=4.e-4, weight_decay=0, amsgrad=False)
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer=self.optimizer, mode='min', factor=0.9,
                                     patience=50, threshold=3.e-4, threshold_mode='rel', verbose=False)
-        return [self.optimizer], [{"scheduler": self.scheduler, "interval": "epoch", "monitor":  "val/loss"}]
+        return [self.optimizer], [{"scheduler": self.scheduler, "interval": "epoch", "monitor":  "trn/loss"}]
 
-    def lr_scheduler_step(
-        self,
-        scheduler,
-        optimizer_idx,
-        metric
-    ) -> None:
+    def lr_scheduler_step(self, scheduler, metric) -> None:
         self.scheduler.step(metric, epoch=self.current_epoch)
 
     def train_dataloader(self):
