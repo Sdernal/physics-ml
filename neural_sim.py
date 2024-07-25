@@ -13,11 +13,11 @@ from src.utils import get_normalization_values, calculate_g
 
 
 class Scene:
-    def __init__(self, system: PoissonSolver, data,
+    def __init__(self, system: PoissonSolver, data, dataset: PoissonDataset,
                  p_max = None, g_max = None, h=1., dt=0.01, rho=1., nu=0.5):
         self.system = system
         self.data = data
-
+        self.dataset = dataset
         # starting point
         self.v = data['v'][0]  # np.ndarray
         self.u = data['u'][0]  # np.ndarray
@@ -52,6 +52,18 @@ class Scene:
         laplacian_p[1:-1, 1:-1] = ((p[2:, 1:-1] - p[1:-1, 1:-1] * 2 + p[:-2, 1:-1]) / dx ** 2
                                     + (p[1:-1, 2:] - p[1:-1, 1:-1] * 2 + p[1:-1, :-2]) / dy ** 2)
         self.frame.append(self.ax_lp.imshow(np.rot90(laplacian_p)))
+
+    def draw_dataset(self, g, p, p_pred):
+        while len(self.frame):
+            self.frame[-1].remove()
+            self.frame.pop()
+
+        self.frame.append(self.ax_p.imshow(np.rot90(g)))
+        self.frame.append(self.ax_v.imshow(np.rot90(p), vmin=0, vmax=1))
+        self.frame.append(self.ax_u.imshow(np.rot90(p_pred), vmin=0, vmax=1))
+        self.frame.append(self.ax_lp.imshow(np.rot90(p_pred - p)))
+        print(abs(p_pred - p).max())
+        # self.fig.colorbar(img)
 
     def advect(self, p):
         """
@@ -103,6 +115,15 @@ class Scene:
         self.draw(p, self.u, self.v)
         return self.frame
 
+    def animate_dataset(self, i):
+        g, p = self.dataset[i * 10]  # type: torch.Tensor  # run on every 10th sample
+        g_batch = g.unsqueeze(dim=0)
+        with torch.no_grad():
+            p_pred = self.system.forward(g_batch)
+        p_pred.squeeze_(dim=0)
+        self.draw_dataset(g.numpy(), p.numpy(), p_pred.numpy())
+        return self.frame
+
 
 if __name__ == '__main__':
     arg_parser = ArgumentParser()
@@ -111,6 +132,7 @@ if __name__ == '__main__':
     arg_parser.add_argument('--val_path')
     arg_parser.add_argument('--animation', type=str, default=None,
                             help="Path to store animation. If None - show in place")
+    arg_parser.add_argument('--animate_dataset', action='store_true', default=False)
     arg_parser.add_argument('--dt', type=float, default=0.01)
     args = arg_parser.parse_args()
 
@@ -129,12 +151,17 @@ if __name__ == '__main__':
     system.load_state_dict(checkpoint['state_dict'])
     system.eval()
 
-    # dataset = PoissonDataset(args.val_path, dt=args.dt, p_max=p_max, g_max=g_max)
+    dataset = PoissonDataset(args.val_path, dt=args.dt, p_max=p_max, g_max=g_max)
     data = np.load(args.val_path)
-    scene = Scene(system, data, p_max, g_max)
-    ani = animation.FuncAnimation(scene.fig, scene.animate, frames=len(data['p']) // 10, interval=int(1000 / 10),
-                                  blit=True,
-                                  repeat=False)
+    scene = Scene(system, data, dataset, p_max, g_max)
+    if args.animate_dataset:
+        ani = animation.FuncAnimation(scene.fig, scene.animate_dataset, frames=len(dataset) // 10, interval=int(1000 / 10),
+                                      blit=True,
+                                      repeat=False)
+    else:
+        ani = animation.FuncAnimation(scene.fig, scene.animate, frames=len(data['p']) // 10, interval=int(1000 / 10),
+                                      blit=True,
+                                      repeat=False)
 
     if args.animation is not None:
         Writer = animation.writers['ffmpeg']

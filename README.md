@@ -117,3 +117,9 @@ For now, it required datasets for calculating normalization constants. But latte
 
 As result, with used dataset it works not well and probably with more diverse data it will work better.
 And there are also a lot of hardcode which should be reworked.
+
+If you run prediction script with mode `--animate_dataset` you will obtain predictions on dataset and differences 
+<p align="center">
+    <img src=".\media\prediction_diff.gif" width="100%" height="auto" align="center"/> 
+</p>
+Here abs(p-pred).max() = 0.00043815374 in all frames, the pressure itself is in $[0,1]$
